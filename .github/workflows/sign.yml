@@ -22,4 +22,4 @@ jobs:
 
       - name: Sign README.md
         if: ${{ github.event_name != 'pull_request' }}
-        run: cosign sign-blob README.md
+        run: cosign sign-blob -y README.md
