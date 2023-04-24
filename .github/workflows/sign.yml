@@ -6,20 +6,38 @@ on:
 
 jobs:
   build:
+  
+    outputs:
+      artifact_hashes: ${{ steps.hash.outputs.artifact_hashes }}
 
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Generate artifact hashes
+        shell: bash
+        id: hash
+        run: |
+          echo "artifact_hashes=$(sha256sum README.md | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+  # Run signing in a separate job to limit ID token exposure
+  sign:
+
+    needs: [build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
       - name: Install cosign
         if: github.event_name != 'pull_request'
         uses: sigstore/cosign-installer@v3.0.2
 
-      - name: Sign README.md
+      - name: Sign artifacts
         if: ${{ github.event_name != 'pull_request' }}
-        run: cosign sign-blob -y README.md
+        run: |
+          echo ${{ needs.build.outputs.artifact_hashes }} | base64 -d > ARTIFACT_SHA256SUMS
+          cosign sign-blob -y ARTIFACT_SHA256SUMS
